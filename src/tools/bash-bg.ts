@@ -13,7 +13,7 @@ import { appendFileSync } from "node:fs";
 import type { BackgroundRegistry } from "../state.ts";
 import { isTerminalStatus, type UiContext } from "../types.ts";
 import { killProcessTree, spawnWithFileOutput } from "../spawn.ts";
-import { add, createRunningJob, newJobId, logPathFor } from "../registry.ts";
+import { add, createRunningJob, newJobId, logPathFor, LOG_DIR } from "../registry.ts";
 import {
     assertJobSlot, detectBlockedSleep, isAutoBackgroundAllowed, isBlankCommand,
     requireExistingCwd, SLEEP_WAIT_GUIDANCE, startBackgroundJob,
@@ -28,7 +28,7 @@ export function registerBashBgTool(pi: ExtensionAPI, reg: BackgroundRegistry): v
         label: "Background Bash",
         description:
             "Start a bash command in the background immediately. " +
-            "Output is saved to /tmp/pi-bg/<jobId>.log.",
+            `Output is saved to ${LOG_DIR}/<jobId>.log.`,
         promptSnippet: "Start long-running commands directly in the background",
         promptGuidelines: [
             "Use bash_bg when a command should definitely start in the background.",

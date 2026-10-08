@@ -10,6 +10,7 @@ import { describe, it, after } from "node:test";
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
 import extension from "../index.ts";
+import { CHILD_MARKER } from "../tools/agent-bg.ts";
 import { EVENT } from "../types.ts";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -150,4 +151,36 @@ after(() => {
     } catch {
         /* already gone */
     }
+});
+
+void describe("agent_bg child isolation", () => {
+    void it("registers nothing when spawned as an agent_bg child", () => {
+        // pi cannot exclude one extension from a child invocation, so the
+        // extension stands down itself via this marker. A worker inheriting a
+        // backgrounding layer would expose a nested agent_bg, auto-background
+        // its own commands into a finished turn, and install signal handlers on
+        // a process it does not own.
+        const previous = process.env[CHILD_MARKER];
+        process.env[CHILD_MARKER] = "1";
+        try {
+            const h = makePi();
+            extension(h.pi as never);
+            assert.equal(h.tools.size, 0, "no tools registered in a child");
+            assert.equal(h.handlers.size, 0, "no session handlers in a child");
+            assert.equal(h.messages.length, 0);
+        } finally {
+            if (previous === undefined) delete process.env[CHILD_MARKER];
+            else process.env[CHILD_MARKER] = previous;
+        }
+    });
+
+    void it("registers the full surface when the marker is absent", () => {
+        // Guards against the stand-down leaking into the parent session.
+        delete process.env[CHILD_MARKER];
+        const h = makePi();
+        extension(h.pi as never);
+        for (const name of ["bash", "bash_bg", "jobs", "agent_bg", "monitor"]) {
+            assert.ok(h.tools.has(name), `${name} should be registered in the parent`);
+        }
+    });
 });

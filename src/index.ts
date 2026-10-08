@@ -22,7 +22,7 @@ import { EVENT } from "./types.ts";
 import { registerBashTool } from "./tools/bash.ts";
 import { registerBashBgTool } from "./tools/bash-bg.ts";
 import { registerJobsTool } from "./tools/jobs.ts";
-import { registerAgentBgTool } from "./tools/agent-bg.ts";
+import { registerAgentBgTool, CHILD_MARKER } from "./tools/agent-bg.ts";
 import { registerMonitorTool } from "./tools/monitor.ts";
 import { registerShortcuts } from "./shortcuts.ts";
 import { registerCommands } from "./commands.ts";
@@ -30,6 +30,15 @@ import { registerInputHandlers } from "./input.ts";
 
 /** Extension entry point. */
 export default function (pi: ExtensionAPI): void {
+    // Inside an `agent_bg` child pi process. A worker whose whole job is to
+    // finish a prompt and write a log must not carry a backgrounding layer:
+    // it would expose a nested agent_bg, auto-background the worker's own
+    // commands into a turn that has already ended (losing their completion
+    // notice), and install process signal handlers on a process it does not
+    // own. pi cannot exclude a single extension from a child invocation, so
+    // stand down here instead.
+    if (process.env[CHILD_MARKER] === "1") return;
+
     const reg = new BackgroundRegistry();
 
     // ── Tool registration ─────────────────────────────────────────

@@ -1,6 +1,6 @@
 // src/spawn.ts
 import { spawn } from "node:child_process";
-import { closeSync, mkdirSync, openSync, unlinkSync } from "node:fs";
+import { chmodSync, closeSync, mkdirSync, openSync, unlinkSync } from "node:fs";
 import { dirname } from "node:path";
 
 /** How the child ended: an exit code, or the signal that killed it. Node
@@ -37,12 +37,14 @@ export function spawnWithFileOutput(args: {
      *  separately (readable, but never emitted as an event). */
     errPath?: string;
     signal?: AbortSignal;
+    /** Extra environment for the child, merged over `process.env`. Used to
+     *  mark a spawned child pi process so this extension can stand down in it. */
+    env?: Record<string, string>;
 }): SpawnResult {
-    ensureLogDir(args.logPath);
-    const outFd = openSync(args.logPath, "w");
+    const outFd = openLogFd(args.logPath);
     let errFd: number;
     try {
-        errFd = args.errPath ? openSync(args.errPath, "w") : outFd;
+        errFd = args.errPath ? openLogFd(args.errPath) : outFd;
     } catch (err) {
         closeSync(outFd);
         throw err;
@@ -58,7 +60,7 @@ export function spawnWithFileOutput(args: {
             stdio: ["ignore", outFd, errFd],
             cwd: args.cwd,
             detached: true,
-            env: { ...process.env },
+            env: { ...process.env, ...args.env },
         });
     } finally {
         closeSync(outFd);
@@ -101,13 +103,40 @@ export function spawnWithFileOutput(args: {
     return { pid, logPath: args.logPath, exit };
 }
 
-/** The log dir is a constant (registry.LOG_DIR), so create it once per process
- *  instead of paying a recursive mkdir on every spawn. */
-let logDirCreated = false;
-function ensureLogDir(logPath: string): void {
-    if (logDirCreated) return;
-    mkdirSync(dirname(logPath), { recursive: true });
-    logDirCreated = true;
+/**
+ * Open a log file, creating the private log directory if it is missing.
+ *
+ * The directory is created 0700 and the file 0600. Job logs routinely contain
+ * whatever a command printed, including anything it echoed out of its own
+ * environment, so they are not world-readable.
+ *
+ * Creating the directory lazily on ENOENT — rather than behind a one-shot
+ * `logDirCreated` flag cached for the process — is deliberate. Caching it
+ * meant that anything which removed the directory (a tmp cleaner, a reboot, an
+ * agent running `rm -rf`) put every *later* spawn in that process into a
+ * permanent ENOENT failure: the flag said the directory existed, so it was
+ * never recreated. Paying one `mkdirSync` only on the failure path costs
+ * nothing in the common case and cannot wedge the process.
+ */
+function openLogFd(logPath: string): number {
+    try {
+        return openSync(logPath, "w", 0o600);
+    } catch (err) {
+        // Only a missing directory is recoverable here. Anything else (a
+        // permission failure, EMFILE) must surface rather than be retried.
+        if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    }
+    const dir = dirname(logPath);
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    // mkdir's mode applies only to a directory it actually creates, and is
+    // filtered through umask. Tighten a pre-existing one on a best-effort
+    // basis: if it is not ours to chmod, there is nothing useful to do.
+    try {
+        chmodSync(dir, 0o700);
+    } catch {
+        /* not ours to change */
+    }
+    return openSync(logPath, "w", 0o600);
 }
 
 /**

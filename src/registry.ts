@@ -8,6 +8,8 @@
 
 import { randomInt } from "node:crypto";
 import { statSync, unlinkSync } from "node:fs";
+import { homedir } from "node:os";
+import { isAbsolute, join } from "node:path";
 import { formatDuration, jobLabel } from "./format.ts";
 import {
     isTerminalStatus,
@@ -45,9 +47,32 @@ export function newJobId(kind: JobKind, reg?: BackgroundRegistry): string {
     return id;
 }
 
-/** Dedicated log directory. Keeping logs in their own dir (not loose in /tmp)
- *  keeps the stale-log sweep bounded — it lists only our files. */
-export const LOG_DIR = "/tmp/pi-bg";
+/**
+ * Dedicated log directory, private to this user.
+ *
+ * This used to be the hardcoded `/tmp/pi-bg`, which was wrong twice over.
+ * `/tmp` is world-readable, so every background job log — build output, test
+ * failures, anything a command echoed out of its own environment — was
+ * readable by every local user: `mkdirSync` yielded 0755 and `openSync`
+ * yielded 0664. And a predictable path inside a shared directory can be
+ * pre-created by another local user, whose ownership the extension would then
+ * write into. `/tmp` is also cleared on reboot and swept by tmp cleaners,
+ * which broke every subsequent spawn (see `openLogFd` in spawn.ts).
+ *
+ * XDG_STATE_HOME is the right home for this: per-user, not world-readable, and
+ * untouched by tmp hygiene. `pi-bg-bash` keeps its logs in the same place for
+ * the same reasons.
+ */
+function resolveLogDir(): string {
+    const xdg = process.env.XDG_STATE_HOME;
+    // Only trust XDG_STATE_HOME when it is absolute; the spec says relative
+    // values must be ignored, and a relative one would put job logs back in
+    // whatever the process cwd happens to be.
+    if (xdg && isAbsolute(xdg)) return join(xdg, "pi-bg");
+    return join(homedir(), ".local", "state", "pi-bg");
+}
+
+export const LOG_DIR = resolveLogDir();
 
 export function logPathFor(jobId: string): string {
     return `${LOG_DIR}/${jobId}.log`;

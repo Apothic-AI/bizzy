@@ -3,6 +3,7 @@
  */
 
 import { Type } from "@earendil-works/pi-ai";
+import { LOG_DIR } from "../registry.ts";
 
 export const bashParamSchema = Type.Object({
     command: Type.String({ description: "Shell command to run" }),
@@ -13,7 +14,7 @@ export const bashParamSchema = Type.Object({
         Type.Boolean({
             description:
                 "Set to true to run this command in the background immediately. " +
-                "Output is saved to /tmp/pi-bg/<jobId>.log.",
+                `Output is saved to ${LOG_DIR}/<jobId>.log.`,
         })
     ),
     description: Type.Optional(

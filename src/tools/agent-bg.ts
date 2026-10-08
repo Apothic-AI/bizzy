@@ -24,6 +24,14 @@ import { spawnWithFileOutput, type SpawnResult } from "../spawn.ts";
 import { streamLog } from "../output.ts";
 import { textBlock } from "../format.ts";
 
+/**
+ * Set on a spawned `agent_bg` child so this extension registers nothing inside
+ * it. pi offers no way to exclude one extension from a child invocation
+ * (`--no-extensions` would also strip the user's own skills and MCP servers),
+ * so the extension stands down itself instead.
+ */
+export const CHILD_MARKER = "PI_BG_TASKS_CHILD";
+
 /** Resolve the full path to the pi binary, memoised for the session. */
 let cachedPiBinary: string | undefined;
 function resolvePiBinary(): string {
@@ -144,6 +152,13 @@ export function registerAgentBgTool(pi: ExtensionAPI, reg: BackgroundRegistry): 
                     fileArgs: spawnArgs,
                     cwd,
                     logPath,
+                    // Mark the child so this extension stands down inside it (see
+                    // CHILD_MARKER in index.ts). The worker must not inherit a
+                    // backgrounding layer: it would expose its own agent_bg,
+                    // auto-background its commands into a headless turn that has
+                    // already ended, and register signal handlers on a process it
+                    // does not own.
+                    env: { [CHILD_MARKER]: "1" },
                 });
             } catch (err) {
                 try { unlinkSync(promptFile); } catch { /* already gone */ }
