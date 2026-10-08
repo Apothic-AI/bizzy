@@ -27,7 +27,7 @@ type InputHandler = (
 >;
 
 void describe("input steering (cooperative scheduler)", () => {
-    void it("aborts the turn, backgrounds the job, and resubmits the message as a followUp", async () => {
+    void it("backgrounds the job and resubmits the message as a steer without aborting", async () => {
         const reg = new BackgroundRegistry();
         const sent: { customType?: string }[] = [];
         const resubmitted: ResubmittedMessage[] = [];
@@ -53,13 +53,16 @@ void describe("input steering (cooperative scheduler)", () => {
 
         assert.equal(result.action, "handled");
         assert.equal(pauseReason, "manual");
-        assert.equal(abortCalled, true);
+        // Aborting would surface "Error: This operation was aborted" and leave
+        // the resubmitted steer parked in the queue. requestPause already returns
+        // the bash tool, so the turn is left to settle on its own.
+        assert.equal(abortCalled, false);
         // Steering suppresses the synthetic "backgrounded, continue working"
         // notice — the user's own resubmitted message drives the next turn,
         // so no redundant agent message is sent.
         assert.equal(sent.length, 0);
         assert.deepEqual(resubmitted, [
-            { text: "stop and inspect the last failure", deliverAs: "followUp" },
+            { text: "stop and inspect the last failure", deliverAs: "steer" },
         ]);
     });
 
@@ -88,8 +91,8 @@ void describe("input steering (cooperative scheduler)", () => {
         // No synthetic agent messages are sent during steering (only the user's
         // resubmitted text), and the second input is ignored (no active slot).
         assert.equal(sent.length, 0);
-        assert.equal(abortCalls, 1);
-        assert.deepEqual(resubmitted, [{ text: "first", deliverAs: "followUp" }]);
+        assert.equal(abortCalls, 0);
+        assert.deepEqual(resubmitted, [{ text: "first", deliverAs: "steer" }]);
     });
 
     void it("returns continue when no cooperative foreground task is active", async () => {
