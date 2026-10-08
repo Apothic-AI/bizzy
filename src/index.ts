@@ -1,5 +1,7 @@
 /**
- * pi-patty-bg-tasks — background task extension for the pi agent.
+ * pi-bizzy-bg-tasks — background task extension for the pi agent.
+ *
+ * Apothic fork of pi-patty-bg-tasks (MIT, (c) patty.io).
  *
  * Registers five tools:
  *   - bash (override)

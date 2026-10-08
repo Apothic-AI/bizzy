@@ -24,9 +24,10 @@ void describe("commands", () => {
         assert.ok(commands.has("bg"));
         assert.ok(commands.has("bg-list"));
         assert.ok(commands.has("bg-version"));
-        assert.match(notices[0], /^pi-patty-bg-tasks@\d+\.\d+\.\d+ loaded from /);
-        // The notice ends with the absolute install directory, not the package
-        // name, so anchor on the path rather than on a trailing "pi-patty-bg-tasks".
+        // Match an npm package name@semver rather than hardcoding the package name, so
+        // a rename does not break this. The notice ends with the absolute install
+        // directory, so the trailing anchor belongs on the path, not the name.
+        assert.match(notices[0], /^[a-z0-9][\w.-]*@\d+\.\d+\.\d+ loaded from /);
         assert.match(notices[0], / loaded from \/.+$/);
     });
 });

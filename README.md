@@ -1,15 +1,18 @@
-# pi-patty-bg-tasks
+# pi-bizzy-bg-tasks
 
 <p align="center">
   <strong>English</strong> · <a href="README.ko.md">한국어</a> · <a href="README.zh.md">中文</a>
 </p>
+
+> [!NOTE]
+> **This is an Apothic fork of [`pi-patty-bg-tasks`](https://github.com/patty-io/pi-patty-bg-tasks)**, MIT © patty.io — the original work of **Patty** ([GitHub](https://github.com/patty-io)). It is published under a new name so it never shadows the upstream package on npm. Fork deltas are listed in [Fork deltas](#fork-deltas); everything else is upstream's.
 
 <p align="center">
   <strong>Long commands shouldn't freeze your agent. Background them automatically — and keep shipping.</strong>
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/pi-patty-bg-tasks"><img alt="npm" src="https://img.shields.io/npm/v/pi-patty-bg-tasks?color=cb3837&label=npm&logo=npm"></a>&nbsp;
+  <a href="https://www.npmjs.com/package/pi-bizzy-bg-tasks"><img alt="npm" src="https://img.shields.io/npm/v/pi-bizzy-bg-tasks?color=cb3837&label=npm&logo=npm"></a>&nbsp;
   <img alt="Pi v0.37+" src="https://img.shields.io/badge/Pi-v0.37%2B-5b50f0">&nbsp;
   <img alt="dependencies: zero" src="https://img.shields.io/badge/dependencies-zero-3fb950">&nbsp;
   <img alt="tmux: not required" src="https://img.shields.io/badge/tmux-not_required-3fb950">&nbsp;
@@ -21,13 +24,13 @@
 ## Install
 
 ```
-pi install npm:pi-patty-bg-tasks
+pi install npm:pi-bizzy-bg-tasks
 ```
 
 Or straight from GitHub:
 
 ```
-pi install git:github.com/patty-io/pi-patty-bg-tasks
+pi install git:github.com/Apothic-AI/bizzy
 ```
 
 Needs Pi v0.37+. That's the only requirement — there are **no external dependencies** and **no tmux**. Background jobs run as plain Node.js child processes with their output piped straight to a file descriptor. Nothing to install, nothing to babysit.
@@ -299,8 +302,8 @@ tmux-backed background jobs, 15s auto-background, cooperative steering, and the 
 ## Development
 
 ```
-git clone https://github.com/patty-io/pi-patty-bg-tasks.git
-cd pi-patty-bg-tasks
+git clone https://github.com/Apothic-AI/bizzy.git
+cd bizzy
 pnpm install
 pnpm check    # type-check
 pnpm test     # run tests
@@ -318,10 +321,21 @@ PRs welcome. The drill:
 4. Commit with [conventional commits](https://www.conventionalcommits.org/)
 5. Open a PR against `main`
 
+## Fork deltas
+
+Everything below is this fork's own work on top of upstream `v2.0.0`. Nothing is sent back upstream.
+
+- **Renamed** to `pi-bizzy-bg-tasks`, republished from [Apothic-AI/bizzy](https://github.com/Apothic-AI/bizzy). Upstream's npm package is untouched.
+- **Deps retargeted** to `pi >=1.1.0` (upstream pins peers at `>=0.79.0` and develops against `0.83`). Verified to compile and test clean on 1.1.0.
+- **Upstream PRs ported:** [#27](https://github.com/patty-io/pi-patty-bg-tasks/pull/27) + [#21](https://github.com/patty-io/pi-patty-bg-tasks/pull/21) (cooperative steering no longer aborts the turn, and delivers as `steer` rather than `followUp`), [#26](https://github.com/patty-io/pi-patty-bg-tasks/pull/26) (a still-running job is no longer reported as finished), [#15](https://github.com/patty-io/pi-patty-bg-tasks/pull/15) (the bash timeout now fires in non-interactive sessions), [#28](https://github.com/patty-io/pi-patty-bg-tasks/pull/28) (cleanup and resolution failures are surfaced), [#19](https://github.com/patty-io/pi-patty-bg-tasks/pull/19) (a stale extension context no longer crashes pi via the monitor stream emit), [#20](https://github.com/patty-io/pi-patty-bg-tasks/pull/20) (detached children are reaped when pi exits or is signalled).
+- **Known test gap:** the `spawn`, `bash-results`, and `monitor` suites spawn real OS processes and cancel under Node 22's test runner (`signal-exit` re-enters `process.emit`). This is upstream behaviour, not introduced here, but it leaves `spawnWithFileOutput` without effective coverage.
+
 ## License
 
-[MIT](LICENSE) © Patty
+[MIT](LICENSE) © Patty. Fork changes © Apothic.
 
 ## Author
 
-**Patty** · [GitHub](https://github.com/patty-io)
+**Patty** · [GitHub](https://github.com/patty-io) — original author
+
+**Apothic** · [GitHub](https://github.com/Apothic-AI/bizzy) — fork maintainer

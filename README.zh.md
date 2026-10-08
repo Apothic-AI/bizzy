@@ -1,15 +1,17 @@
-# pi-patty-bg-tasks
+# pi-bizzy-bg-tasks
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README.ko.md">한국어</a> · <strong>中文</strong>
 </p>
+
+> **注意：** 本包是 [`pi-patty-bg-tasks`](https://github.com/patty-io/pi-patty-bg-tasks) 的 Apothic 分支（MIT, © patty.io），原作者为 **Patty**（[GitHub](https://github.com/patty-io)）。分支改动见 [README.md](README.md) 的 *Fork deltas*。
 
 <p align="center">
   <strong>长命令不该卡住你的代理 —— 自动甩进后台,代理不停手,代码一路往前发。</strong>
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/pi-patty-bg-tasks"><img alt="npm" src="https://img.shields.io/npm/v/pi-patty-bg-tasks?color=cb3837&label=npm&logo=npm"></a>&nbsp;
+  <a href="https://www.npmjs.com/package/pi-bizzy-bg-tasks"><img alt="npm" src="https://img.shields.io/npm/v/pi-bizzy-bg-tasks?color=cb3837&label=npm&logo=npm"></a>&nbsp;
   <img alt="Pi v0.37+" src="https://img.shields.io/badge/Pi-v0.37%2B-5b50f0">&nbsp;
   <img alt="dependencies: zero" src="https://img.shields.io/badge/dependencies-zero-3fb950">&nbsp;
   <img alt="tmux: not required" src="https://img.shields.io/badge/tmux-not_required-3fb950">&nbsp;
@@ -21,13 +23,13 @@
 ## 安装
 
 ```
-pi install npm:pi-patty-bg-tasks
+pi install npm:pi-bizzy-bg-tasks
 ```
 
 或者直接从 GitHub 装:
 
 ```
-pi install git:github.com/patty-io/pi-patty-bg-tasks
+pi install git:github.com/Apothic-AI/bizzy
 ```
 
 只需 Pi v0.37+,要求仅此一条 —— **零外部依赖**,也**不用 tmux**。后台作业就是普通的 Node.js 子进程,输出直接写进一个文件描述符。没什么要装的,也没什么要盯着的。
@@ -279,8 +281,8 @@ monitor({ ws: { url: "wss://events.example.com/stream" }, description: "部署�
 ## 开发
 
 ```
-git clone https://github.com/patty-io/pi-patty-bg-tasks.git
-cd pi-patty-bg-tasks
+git clone https://github.com/Apothic-AI/bizzy.git
+cd bizzy
 pnpm install
 pnpm check    # 类型检查
 pnpm test     # 运行测试
@@ -304,4 +306,6 @@ pnpm test     # 运行测试
 
 ## 作者
 
-**Patty** · [GitHub](https://github.com/patty-io)
+**Patty** · [GitHub](https://github.com/patty-io) — 原作者
+
+**Apothic** · [GitHub](https://github.com/Apothic-AI/bizzy) — 分支维护者
