@@ -4,8 +4,12 @@ import { BackgroundRegistry } from "../state.ts";
 import { registerBashTool } from "../tools/bash.ts";
 import { killProcessTree } from "../spawn.ts";
 import { EVENT, type Job } from "../types.ts";
+import { holdEventLoop } from "./helpers/hold-event-loop.ts";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Every tool call here waits on a real child, and spawnWithFileOutput unrefs it.
+holdEventLoop();
 
 interface ToolDef {
     execute: (

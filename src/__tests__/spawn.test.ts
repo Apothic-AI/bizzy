@@ -4,11 +4,15 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { holdEventLoop } from "./helpers/hold-event-loop.ts";
 
 // Will import from spawn.ts once created
 // import { spawnWithFileOutput, killProcessTree, processExists } from "../spawn.ts";
 
 const testDir = join(tmpdir(), `pi-bg-test-${process.pid}`);
+
+// Every test here awaits a real child's exit, and spawnWithFileOutput unrefs it.
+holdEventLoop();
 
 describe("spawnWithFileOutput", () => {
     test("captures stdout to log file", async () => {

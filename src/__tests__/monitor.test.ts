@@ -8,10 +8,14 @@ import { registerMonitorTool } from "../tools/monitor.ts";
 import { spawnWithFileOutput } from "../spawn.ts";
 import { openWsSource, isWsSupported } from "../monitor-ws.ts";
 import { EVENT } from "../types.ts";
+import { holdEventLoop } from "./helpers/hold-event-loop.ts";
 
 const dir = join(tmpdir(), `pi-bg-monitor-${process.pid}`);
 mkdirSync(dir, { recursive: true });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// The split-spawn and ws tests await a real child's exit; it is unref'd.
+holdEventLoop();
 
 interface CapturedTool {
     execute: (
