@@ -25,6 +25,8 @@ void describe("commands", () => {
         assert.ok(commands.has("bg-list"));
         assert.ok(commands.has("bg-version"));
         assert.match(notices[0], /^pi-patty-bg-tasks@\d+\.\d+\.\d+ loaded from /);
-        assert.match(notices[0], /pi-patty-bg-tasks$/);
+        // The notice ends with the absolute install directory, not the package
+        // name, so anchor on the path rather than on a trailing "pi-patty-bg-tasks".
+        assert.match(notices[0], / loaded from \/.+$/);
     });
 });
