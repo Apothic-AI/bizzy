@@ -140,6 +140,52 @@ Monitors share the same job registry, sidebar (shown with a `◉` pill), and `jo
 
 > **Persistent monitors and disk:** a non-`persistent` monitor's output log is capped (oversized output kills it), but a `persistent` monitor is expected to run for the whole session, so its log is **not** size-capped — point a long-lived `tail -f` at a filtered stream rather than a firehose, and stop it with `jobs action='kill'` when done.
 
+## Tool Gating
+
+A lane does not always want all five tools. A worker that must not delegate to a
+nested `pi -p` process still wants `jobs` and `monitor`; a headless `pi --print`
+run has no use for `agent_bg` at all. Gate one out without giving up the rest.
+
+Config lives beside pi's other extension config, at
+`$PI_CODING_AGENT_DIR/bizzy.json` (`~/.pi/agent/bizzy.json` by default):
+
+```json
+{
+  "disabledTools": ["agent_bg"]
+}
+```
+
+or, to allow only some tools:
+
+```json
+{
+  "tools": ["jobs", "monitor"]
+}
+```
+
+| Source | Scope | Semantics |
+|--------|-------|-----------|
+| `bizzy.json` → `tools` | every session | Allowlist: only these register. |
+| `bizzy.json` → `disabledTools` | every session | Denylist, applied after `tools`. |
+| `BIZZY_TOOLS` | this process | Allowlist as `jobs,monitor` or `jobs monitor`. **Replaces** the file's `tools` instead of merging with it. |
+| `BIZZY_DISABLE_TOOLS` | this process | Denylist, unioned with the file's `disabledTools`. Deny always wins. |
+
+No config and no env means all five register, exactly as before gating existed.
+An unknown name is reported on stderr with the known list rather than being
+treated as a successful disable, and a malformed `bizzy.json` falls back to all
+five with a warning — a bad knob never costs a session its tools.
+
+```sh
+# one headless run that must not spawn nested agents
+BIZZY_DISABLE_TOOLS=agent_bg pi -p "Summarise this log"
+
+# a monitoring lane: the job list and monitors, no spawners
+BIZZY_TOOLS=jobs,monitor pi
+```
+
+Gating is resolved when the extension loads, so `/reload` or a restart picks up
+a config change; an env var has to be set for the process that starts pi.
+
 ## Keyboard Shortcuts
 
 Keep your hands on the keyboard.
@@ -211,6 +257,14 @@ That's exactly how Claude Code behaves: submitting input during an interruptible
 A live pill widget keeps your running jobs in view — each with its duration and a preview of the command. Completed and failed counts ride along in the status line. When you want the full picture, Shift+Down or `/bg-list` opens the task manager.
 
 ## Releases
+
+### 2.3.0 — Per-session tool gating
+
+Gate any of the five tools out of a session, or off a machine entirely,
+through `bizzy.json` beside pi's other extension config (`tools` allowlist,
+`disabledTools` denylist), overridden per process by `BIZZY_TOOLS` and
+`BIZZY_DISABLE_TOOLS`. Default behaviour is unchanged; unknown names and a
+malformed config are reported, and neither can cost a session the other tools.
 
 ### 2.0.0 — Claude Code parity re-architecture
 
