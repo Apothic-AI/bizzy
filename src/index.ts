@@ -10,6 +10,9 @@
  *   - agent_bg
  *   - monitor (streaming-event watch)
  *
+ * Any of the five can be gated out per session through `bizzy.json` or the
+ * `BIZZY_TOOLS` / `BIZZY_DISABLE_TOOLS` env overrides (see config.ts).
+ *
  * Also registers keyboard shortcuts and slash commands.
  */
 
@@ -27,6 +30,7 @@ import { registerMonitorTool } from "./tools/monitor.ts";
 import { registerShortcuts } from "./shortcuts.ts";
 import { registerCommands } from "./commands.ts";
 import { registerInputHandlers } from "./input.ts";
+import { resolveToolGating, TOOL_NAMES } from "./config.ts";
 
 /** Extension entry point. */
 export default function (pi: ExtensionAPI): void {
@@ -39,18 +43,35 @@ export default function (pi: ExtensionAPI): void {
     // stand down here instead.
     if (process.env[CHILD_MARKER] === "1") return;
 
+    // ── Tool gating ───────────────────────────────────────────────
+    // Resolved once per load, so a lane can drop a tool it must not carry
+    // without giving up the other four. Reports a typo rather than treating
+    // an unknown name as a successful disable.
+    const gating = resolveToolGating();
+    if (gating.warning) {
+        process.stderr.write(`[bizzy] ${gating.warning}\n`);
+    }
+    if (gating.unknownNames.length > 0) {
+        process.stderr.write(
+            `[bizzy] ${gating.configPath}: unknown tool name(s): ${gating.unknownNames.join(", ")}` +
+                ` (known: ${TOOL_NAMES.join(", ")})\n`
+        );
+    }
+
     const reg = new BackgroundRegistry();
 
     // ── Tool registration ─────────────────────────────────────────
     // Use the unwrapped tool *definition* so the override inherits Pi's native
     // bash renderCall/renderResult (createBashTool returns a wrapped AgentTool
     // that drops them).
-    const originalBash = createBashToolDefinition(process.cwd());
-    registerBashTool(pi, reg, originalBash);
-    registerBashBgTool(pi, reg);
-    registerJobsTool(pi, reg);
-    registerAgentBgTool(pi, reg);
-    registerMonitorTool(pi, reg);
+    if (gating.isEnabled("bash")) {
+        const originalBash = createBashToolDefinition(process.cwd());
+        registerBashTool(pi, reg, originalBash);
+    }
+    if (gating.isEnabled("bash_bg")) registerBashBgTool(pi, reg);
+    if (gating.isEnabled("jobs")) registerJobsTool(pi, reg);
+    if (gating.isEnabled("agent_bg")) registerAgentBgTool(pi, reg);
+    if (gating.isEnabled("monitor")) registerMonitorTool(pi, reg);
 
     // ── Shortcuts / commands ──────────────────────────────────────
     registerShortcuts(pi, reg);
