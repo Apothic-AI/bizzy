@@ -32,6 +32,12 @@ import { registerCommands } from "./commands.ts";
 import { registerInputHandlers } from "./input.ts";
 import { resolveToolGating, TOOL_NAMES } from "./config.ts";
 import { flushWatcherConfigWrites, initialWatchersCollapsed, readWatcherConfig } from "./watchers.ts";
+import {
+    createMonitorEventPresentation,
+    flushMonitorEventsConfigWrites,
+    readMonitorEventsConfig,
+    registerMonitorEventRenderer,
+} from "./monitor-events.ts";
 
 /** Extension entry point. */
 export default function (pi: ExtensionAPI): void {
@@ -67,6 +73,11 @@ export default function (pi: ExtensionAPI): void {
     reg.watchersCollapsed = initialWatchersCollapsed(watcherPrefs);
     reg.watchersRemember = watcherPrefs.remember;
 
+    // Monitor-event presentation (FT-03): one session object owns the
+    // `collapse-monitor-events` setting and the per-monitor click decisions, so
+    // the renderer and `/toggle-collapse-monitor-events` read the same state.
+    const monitorEvents = createMonitorEventPresentation(readMonitorEventsConfig());
+
     // ── Tool registration ─────────────────────────────────────────
     // Use the unwrapped tool *definition* so the override inherits Pi's native
     // bash renderCall/renderResult (createBashTool returns a wrapped AgentTool
@@ -82,8 +93,13 @@ export default function (pi: ExtensionAPI): void {
 
     // ── Shortcuts / commands ──────────────────────────────────────
     registerShortcuts(pi, reg);
-    registerCommands(pi, reg);
+    registerCommands(pi, reg, monitorEvents);
     registerInputHandlers(pi, reg);
+
+    // ── Monitor events ────────────────────────────────────────────
+    // Registered unconditionally: the setting is about presentation, and a
+    // session that gated the monitor tool out still keeps the preference.
+    registerMonitorEventRenderer(pi, monitorEvents);
 
     // ── Message rendering ─────────────────────────────────────────
     // <task-notification> messages render as one colored line: green for
@@ -138,6 +154,9 @@ export default function (pi: ExtensionAPI): void {
         // A watchers collapse right before exit is a fire-and-forget write; let
         // it land so the next session obeys it.
         await flushWatcherConfigWrites();
+        // A monitor-events flip right before exit is the same fire-and-forget
+        // write; let it land so the next session obeys it too.
+        await flushMonitorEventsConfigWrites();
     });
 
     const reapOnExit = () => reapRunningJobs(reg);

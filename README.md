@@ -285,7 +285,49 @@ Both preferences live in `~/.pi/agent/bizzy-watchers.json` (honouring
 `remember-watchers-toggle` is true. With remembering off, a session starts
 collapsed regardless of the stored value.
 
+### Monitor events in the transcript
+
+Each monitor batch is one `bg-monitor-event` message, and it renders as one
+collapsible block:
+
+```
+▸ Monitor · si-batch dispatcher progress · 3 events · click to expand
+  12:49:04Z DONE ft38 (si-ft38-naming) report=14476B after 1319s
+```
+
+Collapsed is the default. The header names the monitor (its own `description`),
+and the collapsed block shows only the newest event in the batch, so
+the common "what just fired?" case needs no expansion. Click the block to
+expand every event in that batch, and click again to collapse it. The decision
+is per monitor and lasts for the session — one click applies to that monitor's
+other events too — and, unlike the watchers section, it is never remembered
+across sessions.
+
+The setting lives in `~/.pi/agent/bizzy-monitor-events.json` (honouring
+`PI_CODING_AGENT_DIR`):
+
+```json
+{
+  "collapse-monitor-events": true
+}
+```
+
+`collapse-monitor-events` (default `true`) decides the state new blocks are
+added in. `/toggle-collapse-monitor-events [collapse|expand|toggle]` flips it
+and records the choice; the command discards any per-monitor click decisions so
+the new setting is in force for every monitor. Pi's Ctrl+O global expansion
+still expands every block while it is on.
+
 ## Releases
+
+### 2.5.0 — Collapsible monitor events
+
+Monitor event blocks collapse to a header plus the newest event, titled with the
+monitor's own description (`▸ Monitor · <description> · N events · click to
+expand`). `collapse-monitor-events` (default true) in
+`bizzy-monitor-events.json` sets the initial state, and
+`/toggle-collapse-monitor-events` flips it; a click toggles one monitor's blocks
+for the session without remembering it.
 
 ### 2.4.0 — Collapsible watchers section
 

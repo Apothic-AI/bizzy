@@ -108,6 +108,14 @@ void describe("monitor tool — command lifecycle", () => {
         assert.match(streamText, /line-A/);
         assert.match(streamText, /line-B/);
 
+        // FT-03: the renderer reads structured lines, so the message must carry
+        // them (rather than making the transcript re-split the content).
+        const streamedLines = monitorEvents.flatMap(
+            (m) => ((m.details as { lines?: string[] } | undefined)?.lines ?? [])
+        );
+        assert.ok(streamedLines.some((line) => line.includes("line-A")));
+        assert.ok(streamedLines.some((line) => line.includes("line-B")));
+
         // The terminal notice is its own task-notification, sent at exit.
         const terminals = messages.filter((m) => m.customType === EVENT.taskNotification);
         assert.equal(terminals.length, 1, "exactly one terminal notification");

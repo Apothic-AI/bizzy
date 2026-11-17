@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { BackgroundRegistry } from "../state.ts";
 import { registerCommands } from "../commands.ts";
+import { createMonitorEventPresentation } from "../monitor-events.ts";
 
 void describe("commands", () => {
     void it("/bg-version reports the loaded package version and path", async () => {
@@ -14,7 +15,11 @@ void describe("commands", () => {
             sendMessage() {},
         };
 
-        registerCommands(pi as never, new BackgroundRegistry());
+        registerCommands(
+            pi as never,
+            new BackgroundRegistry(),
+            createMonitorEventPresentation({ collapse: true })
+        );
         await commands.get("bg-version")?.handler("", {
             ui: {
                 notify: (message: string) => notices.push(message),

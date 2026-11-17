@@ -61,7 +61,10 @@ export function startMonitorSession(args: {
                     customType: EVENT.monitorEvent,
                     content: `◉ ${description}\n${lines.join("\n")}`,
                     display: true,
-                    details: { jobId: id, description, logPath, terminal: false },
+                    // `lines` lets the FT-03 renderer draw the block without
+                    // re-splitting the persisted content; the description is
+                    // the block's title.
+                    details: { jobId: id, description, logPath, terminal: false, lines },
                 },
                 DELIVER_FOLLOWUP
             );

@@ -6,6 +6,8 @@
  *   - /bg-version: show the loaded extension version/path
  *   - /watchers: collapse/expand the sidebar's watchers (monitor) section
  *   - /remember-watchers-toggle: remember that decision in new sessions
+ *   - /toggle-collapse-monitor-events: flip the transcript's monitor-event
+ *     collapse setting (FT-03)
  */
 
 import { readFileSync } from "node:fs";
@@ -19,6 +21,10 @@ import type { BackgroundRegistry } from "./state.ts";
 import { takeControl, type ControlContext } from "./lifecycle.ts";
 import { setWatchersCollapsed, toggleWatchers } from "./registry.ts";
 import { writeWatcherConfig } from "./watchers.ts";
+import {
+    type MonitorEventPresentation,
+    writeMonitorEventsConfig,
+} from "./monitor-events.ts";
 import { openBgListPanel } from "./ui.ts";
 
 const packageJsonPath = fileURLToPath(new URL("../package.json", import.meta.url));
@@ -27,7 +33,8 @@ const packageRoot = dirname(packageJsonPath);
 /** Register all slash commands. */
 export function registerCommands(
     pi: ExtensionAPI,
-    reg: BackgroundRegistry
+    reg: BackgroundRegistry,
+    monitorEvents: MonitorEventPresentation
 ): void {
     pi.registerCommand("bg", {
         description: "Background the current process and hand control to the agent",
@@ -100,6 +107,33 @@ export function registerCommands(
                           reg.watchersCollapsed ? "collapsed" : "expanded"
                       }).`
                     : "Watchers collapse state is no longer remembered.",
+                "info"
+            );
+        },
+    });
+
+    pi.registerCommand("toggle-collapse-monitor-events", {
+        description:
+            "Collapse or expand monitor event blocks in the transcript: /toggle-collapse-monitor-events [collapse|expand|toggle]",
+        handler: async (args, ctx) => {
+            const verb = args.trim().toLowerCase();
+            if (verb && verb !== "collapse" && verb !== "expand" && verb !== "toggle") {
+                ctx.ui.notify(
+                    `Unknown value "${verb}". Use \`/toggle-collapse-monitor-events [collapse|expand|toggle]\`.`,
+                    "warning"
+                );
+                return;
+            }
+            const collapsed =
+                verb === "collapse" ? true : verb === "expand" ? false : !monitorEvents.collapse;
+            monitorEvents.collapse = collapsed;
+            // A click decision for one monitor outranks the setting. Flipping
+            // the setting is a deliberate global choice, so it discards those
+            // decisions and is in force for every monitor from here on.
+            monitorEvents.overrides.clear();
+            await writeMonitorEventsConfig({ collapse: collapsed });
+            ctx.ui.notify(
+                `Monitor event blocks will start ${collapsed ? "collapsed" : "expanded"}.`,
                 "info"
             );
         },
