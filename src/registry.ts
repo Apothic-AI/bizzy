@@ -23,6 +23,7 @@ import {
 } from "./types.ts";
 import type { BackgroundRegistry } from "./state.ts";
 import { readBoundedTail, readLastLine } from "./output.ts";
+import { writeWatcherConfig } from "./watchers.ts";
 
 // --- ID generation -------------------------------------------------------
 
@@ -224,9 +225,15 @@ function deleteLogFile(logPath: string): number {
  * 1 Hz ticker running while any job is alive so the durations stay live (the
  * widget isn't redrawn on a timer otherwise). Re-renders only when the content
  * actually changes. Call after any state change that affects running jobs.
+ *
+ * Monitors are grouped into a collapsible "watchers" section — collapsed unless
+ * the user expanded it — so a lane with several leader watchers armed spends one
+ * line on them instead of one pill per watcher. Non-monitor pills are never
+ * hidden, and the section's click target is only the section itself.
  */
 export function renderSidebar(reg: BackgroundRegistry, ctx: UiContext): void {
-    const pills: string[] = [];
+    const jobPills: string[] = [];
+    const watcherPills: string[] = [];
     let runningCount = 0;
     const runningLogs = new Set<string>();
 
@@ -241,9 +248,9 @@ export function renderSidebar(reg: BackgroundRegistry, ctx: UiContext): void {
         // Show the job's latest output line as live progress; fall back to the
         // command until there's any output. Re-read each tick by the ticker.
         const progress = sidebarLastLine(job.logPath) || job.command;
-        pills.push(
-            `${glyph} ${jobLabel(job)}: ${progress.slice(0, PREVIEW_CHARS.progress)} (${duration})`
-        );
+        const pill = `${glyph} ${jobLabel(job)}: ${progress.slice(0, PREVIEW_CHARS.progress)} (${duration})`;
+        if (job.kind === "monitor") watcherPills.push(pill);
+        else jobPills.push(pill);
     }
 
     // Drop progress-cache entries for logs no longer tracked.
@@ -251,8 +258,9 @@ export function renderSidebar(reg: BackgroundRegistry, ctx: UiContext): void {
         if (!runningLogs.has(key)) sidebarLineCache.delete(key);
     }
 
-    if (pills.length === 0) {
+    if (runningCount === 0) {
         stopSidebarTicker(reg);
+        reg.sidebarRequestRender = undefined;
         if (reg.lastSidebarContent !== undefined) {
             reg.lastSidebarContent = undefined;
             ctx.ui.setWidget("background-jobs", undefined);
@@ -265,11 +273,39 @@ export function renderSidebar(reg: BackgroundRegistry, ctx: UiContext): void {
     if (reg.completedCount > 0) parts.push(`${reg.completedCount} done`);
     if (reg.failedCount > 0) parts.push(`${reg.failedCount} failed`);
     const statusText = `▶ ${parts.join(", ")}`;
-    const key = `${pills.join("\n")}|${statusText}`;
+    // The collapse state is part of the key: toggling it re-registers the widget
+    // with the new layout instead of waiting for the next tick.
+    const key = `${jobPills.join("\n")}|${watcherPills.join("\n")}|${reg.watchersCollapsed}|${statusText}`;
 
     if (key !== reg.lastSidebarContent) {
         reg.lastSidebarContent = key;
-        ctx.ui.setWidget("background-jobs", pills);
+        ctx.ui.setWidget(
+            "background-jobs",
+            (tui, theme) => {
+                // Mouse input only reaches a widget in fullscreen mode, so the
+                // "click" affordance is advertised only where it works.
+                const clickable = tui.mode === "fullscreen";
+                reg.sidebarRequestRender = () => tui.requestRender();
+                return {
+                    render: () => renderSidebarLines(reg, jobPills, watcherPills, theme, clickable),
+                    handleMouse: (event) => {
+                        if (!clickable || event.type !== "click" || event.button !== "left") {
+                            return undefined;
+                        }
+                        if (watcherPills.length === 0) return undefined;
+                        // Only the watchers section is a toggle target: its header
+                        // (and, expanded, its pills) follow the other job pills.
+                        const start = jobPills.length;
+                        const rows = reg.watchersCollapsed ? 1 : 1 + watcherPills.length;
+                        if (event.y < start || event.y >= start + rows) return undefined;
+                        setWatchersCollapsed(reg, ctx, !reg.watchersCollapsed);
+                        return { handled: true };
+                    },
+                    invalidate: () => {},
+                };
+            },
+            { placement: "aboveEditor" }
+        );
         ctx.ui.setStatus("background-jobs", ctx.ui.theme.fg("accent", statusText));
     }
 
@@ -277,6 +313,58 @@ export function renderSidebar(reg: BackgroundRegistry, ctx: UiContext): void {
     // running jobs there is nothing to tick.
     if (runningCount > 0) ensureSidebarTicker(reg, ctx);
     else stopSidebarTicker(reg);
+}
+
+/** The widget's lines: every non-monitor pill, then the watchers section. */
+function renderSidebarLines(
+    reg: BackgroundRegistry,
+    jobPills: readonly string[],
+    watcherPills: readonly string[],
+    theme: UiContext["ui"]["theme"],
+    clickable: boolean
+): string[] {
+    const lines = [...jobPills];
+    if (watcherPills.length === 0) return lines;
+    const count = watcherPills.length;
+    const head = `${theme.fg("dim", reg.watchersCollapsed ? "▸" : "▾")} ${theme.fg(
+        "muted",
+        `${count} watcher${count === 1 ? "" : "s"}`
+    )}`;
+    const hint = clickable ? "click or /watchers" : "/watchers";
+    if (reg.watchersCollapsed) {
+        // One line, deliberately without a watcher label or latest event:
+        // collapsing is the point, and /watchers (or a click) expands it.
+        lines.push(`${head}${theme.fg("dim", ` · ${hint}`)}`);
+        return lines;
+    }
+    lines.push(`${head}${clickable ? theme.fg("dim", " · click to collapse") : ""}`);
+    lines.push(...watcherPills);
+    return lines;
+}
+
+/**
+ * Collapse or expand the watchers section. The decision is written only while
+ * the user opted into remembering it, so a temporary expand is not a
+ * preference; `remember-watchers-toggle` records the on-screen state when it is
+ * switched on, like the todos widget does.
+ */
+export function setWatchersCollapsed(
+    reg: BackgroundRegistry,
+    ctx: UiContext,
+    collapsed: boolean
+): void {
+    if (reg.watchersCollapsed === collapsed) return;
+    reg.watchersCollapsed = collapsed;
+    if (reg.watchersRemember) void writeWatcherConfig({ collapsed });
+    // The render key includes the collapse state, so this re-registers the widget
+    // with the new layout — and the forced redraw shows it immediately.
+    renderSidebar(reg, ctx);
+    reg.sidebarRequestRender?.();
+}
+
+/** Flip the watchers section (shortcut, slash command, and the section's click target). */
+export function toggleWatchers(reg: BackgroundRegistry, ctx: UiContext): void {
+    setWatchersCollapsed(reg, ctx, !reg.watchersCollapsed);
 }
 
 /** Per-log cache for the sidebar's live progress line: the 1 Hz ticker would

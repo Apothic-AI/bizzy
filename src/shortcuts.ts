@@ -4,6 +4,7 @@
  *   - Ctrl+Shift+B: move the foreground bash to background
  *   - Ctrl+Shift+J / Shift+Down: open the background task manager
  *   - Ctrl+Shift+X: kill the most recent running job
+ *   - Alt+W: collapse or expand the sidebar's watchers (monitor) section
  *
  * Note: Ctrl+B is reserved by pi for `tui.editor.cursorLeft` (built-in
  * keybinding), so the background shortcut lives on Ctrl+Shift+B. Registering
@@ -18,9 +19,10 @@ import {
     terminateJobSilently,
     type ControlContext,
 } from "./lifecycle.ts";
-import { renderSidebar } from "./registry.ts";
+import { renderSidebar, toggleWatchers } from "./registry.ts";
 import { jobLabel } from "./format.ts";
 import { openBgListPanel } from "./ui.ts";
+import type { UiContext } from "./types.ts";
 
 /** Register all shortcuts. */
 export function registerShortcuts(
@@ -47,6 +49,13 @@ export function registerShortcuts(
     pi.registerShortcut("ctrl+shift+x", {
         description: "Kill the most recent running background job",
         handler: async (ctx) => handleCtrlX(reg, ctx),
+    });
+
+    // Alt+W, mirroring the todos widget's Alt+T: the sidebar is always on screen,
+    // so a one-keystroke toggle beats remembering the slash command.
+    pi.registerShortcut("alt+w", {
+        description: "Collapse or expand the sidebar watchers section",
+        handler: async (ctx) => toggleWatchers(reg, ctx as unknown as UiContext),
     });
 }
 

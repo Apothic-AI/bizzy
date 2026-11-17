@@ -5,6 +5,7 @@
  */
 
 import type { Job, ForegroundSlot } from "./types.ts";
+import { DEFAULT_WATCHERS_COLLAPSED } from "./watchers.ts";
 
 export class BackgroundRegistry {
     jobs = new Map<string, Job>();
@@ -26,4 +27,11 @@ export class BackgroundRegistry {
     sidebarTimer: NodeJS.Timeout | undefined = undefined;
     /** Last rendered sidebar content — used to skip redundant widget updates. */
     lastSidebarContent: string | undefined = undefined;
+
+    /** Watchers (monitor) section collapsed? Starts collapsed; see watchers.ts. */
+    watchersCollapsed = DEFAULT_WATCHERS_COLLAPSED;
+    /** Obey the user's last collapse decision in new sessions. */
+    watchersRemember = false;
+    /** Set by the sidebar widget factory; a toggle uses it to force a redraw. */
+    sidebarRequestRender: (() => void) | undefined = undefined;
 }

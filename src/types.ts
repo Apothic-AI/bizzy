@@ -4,6 +4,7 @@
 
 import type { ChildProcess } from "node:child_process";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 
 // --- Configuration constants ---
 export const DEFAULT_TIMEOUT_MS = 120_000;
@@ -125,11 +126,9 @@ export const DELIVER_FOLLOWUP = { deliverAs: "followUp", triggerTurn: false } as
 export interface UiContext {
     ui: {
         notify(message: string, level?: "info" | "warning" | "error"): void;
-        setWidget(
-            name: string,
-            content: string[] | undefined,
-            options?: { placement?: "aboveEditor" | "belowEditor" }
-        ): void;
+        /** The full pi signature: a line array, or a component factory (which is
+         *  what lets the sidebar's watchers section take a click). */
+        setWidget: ExtensionUIContext["setWidget"];
         setStatus(name: string, content: unknown): void;
         theme: { fg(colour: string, text: string): string };
         select(title: string, options: string[]): Promise<string | undefined>;

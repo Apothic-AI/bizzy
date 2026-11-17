@@ -196,6 +196,7 @@ Keep your hands on the keyboard.
 | **Ctrl+Shift+J** | Open the background task manager |
 | **Shift+Down** | Open the background task manager |
 | **Ctrl+Shift+X** | Kill the most recent running job |
+| **Alt+W** | Collapse or expand the sidebar's watchers (monitor) section |
 
 ## Commands
 
@@ -206,6 +207,8 @@ Prefer slashes? Same powers, different door.
 | `/bg` | Background the current process (same as Ctrl+Shift+B) |
 | `/bg-list` | Open the interactive background task manager |
 | `/bg-version` | Show the loaded extension version/path for reload diagnostics |
+| `/watchers [collapse\|expand\|toggle]` | Collapse or expand the sidebar's watchers (monitor) section |
+| `/remember-watchers-toggle [on\|off]` | Remember the watchers collapse decision in new sessions |
 
 ## How It Works
 
@@ -256,7 +259,39 @@ That's exactly how Claude Code behaves: submitting input during an interruptible
 
 A live pill widget keeps your running jobs in view — each with its duration and a preview of the command. Completed and failed counts ride along in the status line. When you want the full picture, Shift+Down or `/bg-list` opens the task manager.
 
+### The watchers section
+
+Every running monitor (a streaming watch, `◉`) is grouped into one **watchers**
+section at the bottom of the widget. It starts collapsed — a single
+`▸ ◉ N watchers` line — so a lane that keeps several leader watchers armed does
+not spend a pill per watcher forever. Expand it with a click on that line
+(fullscreen terminals), **Alt+W**, or `/watchers expand`; collapse it the same
+way. Non-monitor jobs are never hidden.
+
+The decision is session-local by default. `/remember-watchers-toggle` flips
+`remember-watchers-toggle`, and from then on the last expand/collapse is obeyed
+in new pi sessions (`/remember-watchers-toggle on|off` sets it explicitly).
+Both preferences live in `~/.pi/agent/bizzy-watchers.json` (honouring
+`PI_CODING_AGENT_DIR`):
+
+```json
+{
+  "watchers-collapsed": true,
+  "remember-watchers-toggle": false
+}
+```
+
+`watchers-collapsed` records the last decision and is only obeyed while
+`remember-watchers-toggle` is true. With remembering off, a session starts
+collapsed regardless of the stored value.
+
 ## Releases
+
+### 2.4.0 — Collapsible watchers section
+
+The sidebar groups running monitors into one collapsible watchers section
+(collapsed by default), with `watchers-collapsed` / `remember-watchers-toggle`
+preferences, `/watchers`, `/remember-watchers-toggle`, and Alt+W.
 
 ### 2.3.0 — Per-session tool gating
 

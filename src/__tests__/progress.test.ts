@@ -61,17 +61,30 @@ void describe("readLastLine — live progress source", () => {
 });
 
 void describe("renderSidebar — pill shows live progress", () => {
+    type WidgetFactory = (
+        tui: { mode: string; requestRender(): void },
+        theme: { fg(colour: string, text: string): string }
+    ) => { render(width: number): string[] };
+
     function ctxStub() {
-        let widget: string[] | undefined;
+        let factory: WidgetFactory | undefined;
         const ctx = {
             ui: {
                 notify() {},
-                setWidget: (_n: string, c: string[] | undefined) => { widget = c; },
+                setWidget: (_n: string, c: string[] | WidgetFactory | undefined) => {
+                    factory = typeof c === "function" ? c : undefined;
+                },
                 setStatus() {},
                 theme: { fg: (_c: string, t: string) => t },
             },
         } as unknown as UiContext;
-        return { ctx, getWidget: () => widget };
+        // The sidebar registers a component factory; render it the way pi does.
+        const getWidget = () =>
+            factory?.({
+                mode: "fullscreen",
+                requestRender() {},
+            }, { fg: (_c: string, t: string) => t }).render(200);
+        return { ctx, getWidget };
     }
 
     void it("renders the latest output line, not just the command", () => {

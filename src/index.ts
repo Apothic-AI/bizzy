@@ -31,6 +31,7 @@ import { registerShortcuts } from "./shortcuts.ts";
 import { registerCommands } from "./commands.ts";
 import { registerInputHandlers } from "./input.ts";
 import { resolveToolGating, TOOL_NAMES } from "./config.ts";
+import { flushWatcherConfigWrites, initialWatchersCollapsed, readWatcherConfig } from "./watchers.ts";
 
 /** Extension entry point. */
 export default function (pi: ExtensionAPI): void {
@@ -59,6 +60,12 @@ export default function (pi: ExtensionAPI): void {
     }
 
     const reg = new BackgroundRegistry();
+
+    // Watchers-section preference (FT-02): a session starts collapsed unless the
+    // user asked for the last collapse/expand decision to be remembered.
+    const watcherPrefs = readWatcherConfig();
+    reg.watchersCollapsed = initialWatchersCollapsed(watcherPrefs);
+    reg.watchersRemember = watcherPrefs.remember;
 
     // ── Tool registration ─────────────────────────────────────────
     // Use the unwrapped tool *definition* so the override inherits Pi's native
@@ -127,6 +134,10 @@ export default function (pi: ExtensionAPI): void {
         // children (spawn.ts unref) that would otherwise survive a non-quit
         // parent exit and burn CPU under launchd/PID 1.
         reapRunningJobs(reg);
+
+        // A watchers collapse right before exit is a fire-and-forget write; let
+        // it land so the next session obeys it.
+        await flushWatcherConfigWrites();
     });
 
     const reapOnExit = () => reapRunningJobs(reg);

@@ -14,8 +14,8 @@ function makeCtx(): { calls: WidgetCall[]; ctx: UiContext } {
     const ctx = {
         ui: {
             notify: () => {},
-            setWidget: (name: string, content: string[] | undefined, options?: { placement?: string }) =>
-                calls.push({ name, content, options }),
+            setWidget: (name: string, content: string[] | ((...args: unknown[]) => unknown) | undefined, options?: { placement?: string }) =>
+                calls.push({ name, content: content as string[] | undefined, options }),
             setStatus: () => {},
             theme: { fg: (_c: string, t: string) => t },
             select: async () => undefined,
