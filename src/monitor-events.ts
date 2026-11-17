@@ -23,7 +23,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { agentConfigDir } from "./config.ts";
@@ -75,6 +75,26 @@ export function readMonitorEventsConfig(path = monitorEventsConfigPath()): Monit
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 
+/**
+ * Write beside the target and rename onto it, so a reader — another pi process
+ * starting a session, or this one after a crash — never sees a half-written
+ * JSON document. The temp file sits in the same directory so the rename stays
+ * within one filesystem, and it is removed when the write itself fails rather
+ * than left behind to confuse the next run.
+ */
+export async function writeAtomic(path: string, text: string): Promise<void> {
+    const tmp = `${path}.${process.pid}.tmp`;
+    try {
+        await writeFile(tmp, text);
+        await rename(tmp, path);
+    } catch (error) {
+        // Swallow the cleanup failure so the caller sees the write failure,
+        // which is the one that explains why nothing changed.
+        await rm(tmp, { force: true }).catch(() => {});
+        throw error;
+    }
+}
+
 /** Read-modify-write on one queue, so concurrent writers cannot clobber each
  *  other or the file's other keys. */
 export function writeMonitorEventsConfig(
@@ -84,7 +104,7 @@ export function writeMonitorEventsConfig(
     const filePatch: Record<string, boolean> = {};
     if (patch.collapse !== undefined) filePatch[COLLAPSE_MONITOR_EVENTS_KEY] = patch.collapse;
     const write = writeQueue.then(async () => {
-        await writeFile(path, `${JSON.stringify({ ...readRecord(path), ...filePatch }, null, 2)}\n`);
+        await writeAtomic(path, `${JSON.stringify({ ...readRecord(path), ...filePatch }, null, 2)}\n`);
     });
     writeQueue = write.catch(() => {});
     return write;

@@ -6,14 +6,36 @@
  *     and appends no state snapshot
  */
 
-import { describe, it, after } from "node:test";
+import { describe, it, after, before } from "node:test";
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import extension from "../index.ts";
 import { CHILD_MARKER } from "../tools/agent-bg.ts";
 import { EVENT } from "../types.ts";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * This file asserts the *default* tool surface, so it must not resolve its
+ * config from the machine's `~/.pi/agent/bizzy.json`. A machine that disables a
+ * tool there — this one carries `{"disabledTools":["agent_bg"]}` — makes the
+ * "registers the full surface" test fail for a configuration reason the code
+ * has nothing to do with, and the failure message blames the code. Point the
+ * config base at an empty directory for the whole file and restore it after.
+ */
+const isolatedAgentDir = mkdtempSync(join(tmpdir(), "bizzy-index-test-"));
+const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+before(() => {
+    process.env.PI_CODING_AGENT_DIR = isolatedAgentDir;
+});
+after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    rmSync(isolatedAgentDir, { recursive: true, force: true });
+});
 
 /** A process marker unique to this test run, so pgrep can't hit strangers. */
 const MARKER = `pi-bg-shutdown-test-${process.pid}`;

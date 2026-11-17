@@ -10,7 +10,7 @@
 
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BackgroundRegistry } from "../state.ts";
@@ -302,5 +302,27 @@ void describe("monitor events — /toggle-collapse-monitor-events", () => {
 
         await command!.handler("sideways", ctx);
         assert.match(notices.at(-1) ?? "", /Unknown value "sideways"/);
+    });
+
+    it("a failed preference write leaves the stored file intact and no temp file behind", async () => {
+        const base = mkdtempSync(join(tmpdir(), "bizzy-monitor-write-"));
+        const target = join(base, "bizzy-monitor-events.json");
+        try {
+            await writeMonitorEventsConfig({ collapse: false }, target);
+            const before = readFileSync(target, "utf8");
+            // A directory at the temp path makes the write fail before the rename.
+            mkdirSync(`${target}.${process.pid}.tmp`);
+            await assert.rejects(
+                () => writeMonitorEventsConfig({ collapse: true }, target),
+                "a write that cannot complete must surface, not be swallowed"
+            );
+            assert.equal(
+                readFileSync(target, "utf8"),
+                before,
+                "the stored preference survives a failed write"
+            );
+        } finally {
+            rmSync(base, { recursive: true, force: true });
+        }
     });
 });
